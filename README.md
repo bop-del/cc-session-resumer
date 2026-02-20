@@ -86,9 +86,9 @@ git clone https://github.com/bop-del/cc-session-resumer.git ~/code/cc-session-re
 
 # 2. Symlink into PATH
 mkdir -p ~/.local/bin
-ln -s ~/code/cc-session-resumer/ccs ~/.local/bin/ccs
-ln -s ~/code/cc-session-resumer/ccs-preview ~/.local/bin/ccs-preview
-ln -s ~/code/cc-session-resumer/ccs-open ~/.local/bin/ccs-open
+ln -s ~/code/cc-session-resumer/ccs ~/.local/bin/cc-session-resumer
+ln -s ~/code/cc-session-resumer/ccs-preview ~/.local/bin/cc-session-resumer-preview
+ln -s ~/code/cc-session-resumer/ccs-open ~/.local/bin/cc-session-resumer-open
 
 # 3. Ensure ~/.local/bin is on your PATH (add to ~/.zshrc if needed)
 export PATH="$HOME/.local/bin:$PATH"
@@ -97,8 +97,8 @@ export PATH="$HOME/.local/bin:$PATH"
 ## Usage
 
 ```bash
-ccs          # open picker (vim mode, default)
-ccs --normal # multi-select mode (TAB to select multiple, ENTER to open all)
+cc-session-resumer          # open picker (vim mode, default)
+cc-session-resumer --normal # multi-select mode (TAB to select multiple, ENTER to open all)
 ```
 
 ## Files
