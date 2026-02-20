@@ -1,0 +1,327 @@
+#!/usr/bin/env python3
+"""
+ccs — Claude Session Picker
+Opens a fzf picker of all Claude sessions across all projects.
+Selecting one opens `claude --resume <id>` in a new Warp tab.
+"""
+
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def load_sessions() -> list[dict]:
+    """Load and aggregate all sessions from all project session indexes."""
+    projects_dir = Path.home() / ".claude" / "projects"
+    sessions = []
+
+    if not projects_dir.is_dir():
+        return sessions
+
+    indexed_ids = set()
+    for project_dir in projects_dir.iterdir():
+        if not project_dir.is_dir():
+            continue
+        index_file = project_dir / "sessions-index.json"
+        if not index_file.exists():
+            continue
+        try:
+            data = json.loads(index_file.read_text())
+            for entry in data.get("entries", []):
+                # Skip trivial sessions
+                if entry.get("messageCount", 0) < 2:
+                    continue
+                indexed_ids.add(entry["sessionId"])
+                # Detect crash: last conversation message from user = no response received
+                jsonl_path = project_dir / f"{entry['sessionId']}.jsonl"
+                crashed = False  # default: assume clean if we can't check
+                if jsonl_path.exists():
+                    try:
+                        lines_all = jsonl_path.read_text().strip().splitlines()
+                        convo = []
+                        for l in lines_all:
+                            try:
+                                m = json.loads(l)
+                                if m.get("type") in ("user", "human", "assistant"):
+                                    convo.append(m)
+                            except json.JSONDecodeError:
+                                pass
+                        crashed = bool(convo) and convo[-1].get("type") in ("user", "human")
+                    except (OSError, json.JSONDecodeError):
+                        pass
+                entry = dict(entry, crashed=crashed)
+                sessions.append(entry)
+        except (json.JSONDecodeError, KeyError):
+            continue
+
+    # Fallback: scan raw .jsonl files for any session not already in an index
+    # (covers projects with no index AND sessions missing from an existing index)
+    for project_dir in projects_dir.iterdir():
+        if not project_dir.is_dir():
+            continue
+        for jsonl_file in sorted(
+            project_dir.glob("*.jsonl"),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True,
+):
+            try:
+                if jsonl_file.stem in indexed_ids:
+                    continue
+                raw_lines = jsonl_file.read_text().strip().splitlines()
+                if len(raw_lines) < 2:
+                    continue
+                parsed_msgs = []
+                for rl in raw_lines:
+                    try:
+                        parsed_msgs.append(json.loads(rl))
+                    except json.JSONDecodeError:
+                        continue
+                if not parsed_msgs:
+                    continue
+                first_msg = parsed_msgs[0]
+                cwd = next(
+                    (m.get("cwd", "") for m in parsed_msgs if m.get("cwd")),
+                    "",
+                )
+                convo_count = sum(
+                    1 for m in parsed_msgs
+                    if m.get("type") in ("human", "user", "assistant")
+                )
+                # Crashed = last conversation message was from user (never got a response)
+                convo_msgs = [m for m in parsed_msgs if m.get("type") in ("user", "human", "assistant")]
+                had_clean_exit = bool(convo_msgs) and convo_msgs[-1].get("type") == "assistant"
+                modified_iso = datetime.fromtimestamp(
+                    jsonl_file.stat().st_mtime, tz=timezone.utc
+                ).isoformat()
+                created_iso = datetime.fromtimestamp(
+                    jsonl_file.stat().st_ctime, tz=timezone.utc
+                ).isoformat()
+                # Extract summary from first human message text
+                summary = "No summary"
+                for raw_line in raw_lines[:15]:
+                    try:
+                        msg = json.loads(raw_line)
+                        if msg.get("type") in ("human", "user"):
+                            content = msg.get("message", {}).get("content", "")
+                            if isinstance(content, list):
+                                content = " ".join(
+                                    c.get("text", "")
+                                    for c in content
+                                    if isinstance(c, dict)
+                                )
+                            text = str(content).strip()
+                            if text:
+                                summary = text[:80]
+                                break
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        continue
+                sessions.append({
+                    "sessionId": jsonl_file.stem,
+                    "summary": summary,
+                    "firstPrompt": summary,
+                    "messageCount": convo_count,
+                    "created": created_iso,
+                    "modified": modified_iso,
+                    "projectPath": cwd,
+                    "gitBranch": "",
+                    "crashed": not had_clean_exit,
+                })
+            except (json.JSONDecodeError, OSError):
+                continue
+
+    # Sort by modified descending (most recent first)
+    sessions.sort(key=lambda x: x.get("modified", ""), reverse=True)
+    return sessions
+
+
+def format_date(iso_str: str) -> str:
+    """Format ISO date string to human-readable relative or absolute."""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        delta = now - dt
+        if delta.total_seconds() < 0:
+            return "just now"
+        days = delta.days
+        if days == 0:
+            hours = delta.seconds // 3600
+            if hours == 0:
+                mins = delta.seconds // 60
+                return f"{mins}m ago"
+            return f"{hours}h ago"
+        elif days == 1:
+            return "yesterday"
+        elif days < 7:
+            return f"{days}d ago"
+        elif days < 30:
+            return f"{days // 7}w ago"
+        else:
+            return dt.strftime("%Y-%m-%d")
+    except (ValueError, TypeError):
+        return iso_str[:10] if iso_str else "unknown"
+
+
+def short_project(project_path: str) -> str:
+    """Extract a short project name from the full path."""
+    if not project_path:
+        return "unknown"
+    path = Path(project_path)
+    # Use last 2 path components for readability
+    parts = path.parts
+    if len(parts) >= 2:
+        return f"{parts[-2]}/{parts[-1]}"
+    return path.name
+
+
+def build_fzf_lines(sessions: list[dict]) -> list[str]:
+    """Build display lines for fzf. Tab-separated: display\tsessionId\tprojectPath"""
+    lines = []
+    for s in sessions:
+        session_id = s.get("sessionId", "")
+        summary = s.get("summary", "") or s.get("firstPrompt", "") or "No summary"
+        modified = format_date(s.get("modified", ""))
+        msg_count = s.get("messageCount", 0)
+        project_path = s.get("projectPath", "")
+        project = short_project(project_path)
+        branch = s.get("gitBranch", "")
+        branch_str = f"[{branch}]" if branch and branch != "main" else ""
+
+        # Skip noisy/empty sessions
+        if summary in ("User Exited Session", "No summary") and msg_count < 3:
+            continue
+
+        # Strip XML-style command tags, keep first meaningful line
+        import re as _re
+        summary = _re.sub(r"<[^>]+>", "", summary)
+        summary = summary.split("\n")[0].strip()
+        if not summary:
+            summary = "No summary"
+
+        # Truncate long fields
+        summary = summary[:90] + "…" if len(summary) > 90 else summary
+
+        # Display columns with ANSI colors: date=dim, msgs=cyan, project=yellow, summary=white, branch=magenta
+        crashed    = s.get("crashed", False)
+        crash_col  = f"\033[31m!\033[0m" if crashed else " "
+        date_col   = f"\033[2m{modified:<10}\033[0m"
+        msgs_col   = f"\033[36m{msg_count:>4}msg\033[0m"
+        project_t  = project[:20] + "…" if len(project) > 20 else project
+        proj_col   = f"\033[33m{project_t:<21}\033[0m"
+        summ_col   = summary
+        branch_col = f"\033[35m{branch_str}\033[0m" if branch_str else ""
+        display = f"{crash_col} {date_col}  {msgs_col}  {proj_col}  {summ_col} {branch_col}"
+
+        # Tab-separated metadata (fzf uses first field for display, we store session info after)
+        line = f"{display}\t{session_id}\t{project_path}"
+        lines.append(line)
+    return lines
+
+
+def open_in_warp(session_id: str, project_path: str) -> None:
+    """Open a new Warp tab running claude --resume <session_id> in the project directory."""
+    if project_path and Path(project_path).exists():
+        cmd = f"cd {shlex_quote(project_path)} && claude --resume {session_id}"
+    else:
+        cmd = f"claude --resume {session_id}"
+
+    # Write cmd to clipboard, open new Warp tab, paste and run
+    # (avoids AppleScript keystroke escaping issues with special chars)
+    subprocess.run(["pbcopy"], input=cmd, text=True, check=True)
+    script = """
+tell application "Warp"
+  activate
+end tell
+tell application "System Events"
+  tell process "Warp"
+    keystroke "t" using command down
+    delay 0.4
+    keystroke "v" using command down
+    delay 0.1
+    keystroke return
+  end tell
+end tell
+"""
+    subprocess.run(["osascript", "-e", script], check=True)
+
+
+def shlex_quote(s: str) -> str:
+    """Simple shell quoting for paths with spaces."""
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def main():
+    vim_mode = "--normal" not in sys.argv  # vim mode is default; --normal for multi-select
+
+    sessions = load_sessions()
+    if not sessions:
+        print("No Claude sessions found.", file=sys.stderr)
+        sys.exit(1)
+
+    lines = build_fzf_lines(sessions)
+
+    # Build fzf preview: delegate to ccs-preview helper
+    # {2} = second tab-delimited field = session ID
+    preview_cmd = "ccs-preview {2}"
+
+    fzf_input = "\n".join(lines)
+
+    open_bind = "execute-silent(ccs-open {2} {3})"
+
+    if vim_mode:
+        header = "j↓  k↑  l=open  /=search  ESC=quit"
+        extra = [
+            "--disabled",                               # no typing by default
+            "--bind=j:down",
+            "--bind=k:up",
+            "--bind=l:" + open_bind,
+            "--bind=tab:down",
+            "--bind=/:enable-search+clear-query",       # / enters search mode
+            "--bind=esc:cancel",
+            "--bind=enter:ignore",
+            # block stray letter keys
+            "--bind=a:ignore,b:ignore,c:ignore,d:ignore,e:ignore,f:ignore",
+            "--bind=g:ignore,h:ignore,i:ignore,m:ignore,n:ignore,o:ignore",
+            "--bind=p:ignore,q:ignore,r:ignore,s:ignore,t:ignore,u:ignore",
+            "--bind=v:ignore,w:ignore,x:ignore,y:ignore,z:ignore",
+        ]
+    else:
+        header = "j↓  k↑  ENTER=open  /=search  ESC=quit"
+        extra = [
+            "--disabled",
+            "--bind=j:down",
+            "--bind=k:up",
+            "--bind=enter:" + open_bind,
+            "--bind=tab:down",
+            "--bind=/:enable-search+clear-query",
+            "--bind=esc:cancel",
+            "--bind=a:ignore,b:ignore,c:ignore,d:ignore,e:ignore,f:ignore",
+            "--bind=g:ignore,h:ignore,i:ignore,m:ignore,n:ignore,o:ignore",
+            "--bind=p:ignore,q:ignore,r:ignore,s:ignore,t:ignore,u:ignore",
+            "--bind=v:ignore,w:ignore,x:ignore,y:ignore,z:ignore",
+        ]
+
+    fzf_cmd = [
+        "fzf",
+        "--delimiter=\t",
+        "--with-nth=1",
+        "--preview", preview_cmd,
+        "--preview-window=right:45%:wrap",
+        "--prompt=Session> ",
+        f"--header={header}",
+        "--ansi",
+        "--layout=reverse-list",
+    ] + extra
+
+    # Single fzf run — stays open until ESC (execute never closes fzf)
+    subprocess.run(
+        fzf_cmd,
+        input=fzf_input,
+        text=True,
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""ccs-open — open a Claude session in a new Warp tab. Called by ccs via fzf execute."""
+import subprocess
+import sys
+from pathlib import Path
+
+
+def shlex_quote(s: str) -> str:
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(1)
+    session_id = sys.argv[1]
+    project_path = sys.argv[2] if len(sys.argv) > 2 else ""
+
+    if project_path and Path(project_path).exists():
+        cmd = f"cd {shlex_quote(project_path)} && claude --resume {session_id}"
+    else:
+        cmd = f"claude --resume {session_id}"
+
+    subprocess.run(["pbcopy"], input=cmd, text=True, check=True)
+    script = """
+tell application "Warp"
+  activate
+end tell
+tell application "System Events"
+  tell process "Warp"
+    keystroke "t" using command down
+    delay 0.4
+    keystroke "v" using command down
+    delay 0.1
+    keystroke return
+  end tell
+end tell
+"""
+    subprocess.run(["osascript", "-e", script], check=True)
+    print(f"Opened {session_id[:8]}…")
+
+
+if __name__ == "__main__":
+    main()
