@@ -262,13 +262,13 @@ def main():
 
     lines = build_fzf_lines(sessions)
 
-    # Build fzf preview: delegate to ccs-preview helper
+    # Build fzf preview: delegate to cc-session-resumer-preview helper
     # {2} = second tab-delimited field = session ID
-    preview_cmd = "ccs-preview {2}"
+    preview_cmd = "cc-session-resumer-preview {2}"
 
     fzf_input = "\n".join(lines)
 
-    open_bind = "execute-silent(ccs-open {2} {3})"
+    open_bind = "execute-silent(cc-session-resumer-open {2} {3})"
 
     if vim_mode:
         header = "j↓  k↑  l=open  /=search  ESC=quit"

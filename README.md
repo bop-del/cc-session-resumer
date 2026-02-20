@@ -105,8 +105,8 @@ cc-session-resumer --normal # multi-select mode (TAB to select multiple, ENTER t
 
 ```
 cc-session-resumer/
-├── ccs           # main picker (fzf launcher + session loader)
-├── ccs-preview   # fzf preview pane renderer
-├── ccs-open      # Warp tab opener (called by fzf execute-silent)
+├── cc-session-resumer          # main picker (fzf launcher + session loader)
+├── cc-session-resumer-preview  # fzf preview pane renderer
+├── cc-session-resumer-open     # Warp tab opener (called by fzf execute-silent)
 └── README.md
 ```
