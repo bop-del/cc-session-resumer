@@ -271,7 +271,7 @@ def main():
     open_bind = "execute-silent(cc-session-resumer-open {2} {3})"
 
     if vim_mode:
-        header = "j↓  k↑  l=open  /=search  ESC=quit"
+        header = "j↓  k↑  l=open  /=search  ESC=back/quit"
         extra = [
             "--disabled",                               # no typing by default
             "--bind=j:down",
@@ -288,7 +288,7 @@ def main():
             "--bind=v:ignore,w:ignore,x:ignore,y:ignore,z:ignore",
         ]
     else:
-        header = "j↓  k↑  ENTER=open  /=search  ESC=quit"
+        header = "j↓  k↑  ENTER=open  /=search  ESC=back/quit"
         extra = [
             "--disabled",
             "--bind=j:down",
@@ -306,7 +306,6 @@ def main():
     fzf_cmd = [
         "fzf",
         "--delimiter=\t",
-        "--with-nth=1",
         "--preview", preview_cmd,
         "--preview-window=right:45%:wrap",
         "--prompt=Session> ",
