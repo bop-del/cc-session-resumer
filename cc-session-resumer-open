@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ccs-open — open a Claude session in a new Warp tab. Called by ccs via fzf execute."""
+"""cc-session-resumer-open — open a Claude session in a new Warp tab. Called by cc-session-resumer via fzf execute."""
 import subprocess
 import sys
 from pathlib import Path

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ccs — Claude Session Picker
+cc-session-resumer — Claude Session Picker
 Opens a fzf picker of all Claude sessions across all projects.
 Selecting one opens `claude --resume <id>` in a new Warp tab.
 """

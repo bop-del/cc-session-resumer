@@ -40,13 +40,13 @@ Edit here → changes take effect immediately, no install step needed.
 | `/` | Enter fuzzy search mode |
 | `ESC` | Quit |
 
-Use `ccs --normal` for multi-select mode (TAB + ENTER).
+Use `cc-session-resumer --normal` for multi-select mode (TAB + ENTER).
 
 ### How sessions are loaded
 
 Claude Code stores sessions in `~/.claude/projects/<encoded-path>/`.
 Each project may have a `sessions-index.json` (structured metadata) and/or
-raw `.jsonl` files (one JSON object per line). `ccs` reads both, deduplicates
+raw `.jsonl` files (one JSON object per line). `cc-session-resumer` reads both, deduplicates
 by session ID, and sorts by modification time (newest first).
 
 **Crash detection:** a session is flagged with `!` if its last conversation
@@ -54,7 +54,7 @@ message was from the user (i.e. Claude never responded to the final prompt).
 
 ### Preview pane
 
-The right-side preview pane (`ccs-preview`) reads the raw `.jsonl` for the
+The right-side preview pane (`cc-session-resumer-preview`) reads the raw `.jsonl` for the
 selected session and renders:
 
 - Bold cyan title (first prompt / summary), up to 2 lines
@@ -74,7 +74,7 @@ selected session and renders:
 | Warp terminal | https://warp.dev |
 | macOS Accessibility for Warp | System Settings → Privacy & Security → Accessibility |
 
-> **Accessibility permission required:** `ccs-open` uses AppleScript to open
+> **Accessibility permission required:** `cc-session-resumer-open` uses AppleScript to open
 > a new Warp tab. Enable it in:
 > **System Settings → Privacy & Security → Accessibility → Warp ✓**
 
@@ -86,9 +86,9 @@ git clone https://github.com/bop-del/cc-session-resumer.git ~/code/cc-session-re
 
 # 2. Symlink into PATH
 mkdir -p ~/.local/bin
-ln -s ~/code/cc-session-resumer/ccs ~/.local/bin/cc-session-resumer
-ln -s ~/code/cc-session-resumer/ccs-preview ~/.local/bin/cc-session-resumer-preview
-ln -s ~/code/cc-session-resumer/ccs-open ~/.local/bin/cc-session-resumer-open
+ln -s ~/code/cc-session-resumer/cc-session-resumer ~/.local/bin/cc-session-resumer
+ln -s ~/code/cc-session-resumer/cc-session-resumer-preview ~/.local/bin/cc-session-resumer-preview
+ln -s ~/code/cc-session-resumer/cc-session-resumer-open ~/.local/bin/cc-session-resumer-open
 
 # 3. Ensure ~/.local/bin is on your PATH (add to ~/.zshrc if needed)
 export PATH="$HOME/.local/bin:$PATH"
