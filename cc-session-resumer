@@ -52,7 +52,7 @@ def load_sessions() -> list[dict]:
                         crashed = bool(convo) and convo[-1].get("type") in ("user", "human")
                     except (OSError, json.JSONDecodeError):
                         pass
-                entry = dict(entry, crashed=crashed)
+                entry = dict(entry, crashed=crashed, resumable=True)
                 sessions.append(entry)
         except (json.JSONDecodeError, KeyError):
             continue
@@ -128,6 +128,7 @@ def load_sessions() -> list[dict]:
                     "projectPath": cwd,
                     "gitBranch": "",
                     "crashed": not had_clean_exit,
+                    "resumable": False,
                 })
             except (json.JSONDecodeError, OSError):
                 continue
@@ -205,17 +206,19 @@ def build_fzf_lines(sessions: list[dict]) -> list[str]:
 
         # Display columns with ANSI colors: date=dim, msgs=cyan, project=yellow, summary=white, branch=magenta
         crashed    = s.get("crashed", False)
+        resumable  = s.get("resumable", True)
         crash_col  = f"\033[31m!\033[0m" if crashed else " "
+        resume_col = f"\033[2m⊘\033[0m" if not resumable else " "
         date_col   = f"\033[2m{modified:<10}\033[0m"
         msgs_col   = f"\033[36m{msg_count:>4}msg\033[0m"
         project_t  = project[:20] + "…" if len(project) > 20 else project
         proj_col   = f"\033[33m{project_t:<21}\033[0m"
-        summ_col   = summary
+        summ_col   = f"\033[2m{summary}\033[0m" if not resumable else summary
         branch_col = f"\033[35m{branch_str}\033[0m" if branch_str else ""
-        display = f"{crash_col} {date_col}  {msgs_col}  {proj_col}  {summ_col} {branch_col}"
+        display = f"{crash_col}{resume_col} {date_col}  {msgs_col}  {proj_col}  {summ_col} {branch_col}"
 
-        # Tab-separated: field 1 = ANSI display line, field 2 = session ID, field 3 = project path (all searchable)
-        line = f"{display}\t{session_id}\t{project_path}"
+        # Tab-separated: field 1 = ANSI display line, field 2 = session ID, field 3 = project path, field 4 = resumable flag (all searchable)
+        line = f"{display}\t{session_id}\t{project_path}\t{'1' if resumable else '0'}"
         lines.append(line)
     return lines
 
@@ -268,7 +271,7 @@ def main():
 
     fzf_input = "\n".join(lines)
 
-    open_bind = "execute-silent(cc-session-resumer-open {2} {3})"
+    open_bind = "execute-silent(cc-session-resumer-open {2} {3} {4})"
 
     if vim_mode:
         header = "j↓  k↑  l=open  /=search  ESC=back/quit"
