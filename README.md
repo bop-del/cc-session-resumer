@@ -23,11 +23,11 @@ Three scripts, each with a single responsibility:
 
 | Script | Role |
 |--------|------|
-| `ccs` | Main entry point — loads sessions, builds fzf picker, handles key bindings |
-| `ccs-preview` | fzf preview pane — renders session card from `.jsonl` data |
-| `ccs-open` | Session opener — builds resume command, copies to clipboard, opens Warp tab |
+| `cc-session-resumer` | Main entry point — loads sessions, builds fzf picker, handles key bindings |
+| `cc-session-resumer-preview` | fzf preview pane — renders session card from `.jsonl` data |
+| `cc-session-resumer-open` | Session opener — builds resume command, copies to clipboard, opens Warp tab |
 
-`~/.local/bin/ccs`, `ccs-preview`, and `ccs-open` are symlinks into this repo.
+`~/.local/bin/cc-session-resumer`, `cc-session-resumer-preview`, and `cc-session-resumer-open` are symlinks into this repo.
 Edit here → changes take effect immediately, no install step needed.
 
 ### Key bindings (vim mode, default)
