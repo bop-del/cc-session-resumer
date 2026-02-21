@@ -214,7 +214,7 @@ def build_fzf_lines(sessions: list[dict]) -> list[str]:
         branch_col = f"\033[35m{branch_str}\033[0m" if branch_str else ""
         display = f"{crash_col} {date_col}  {msgs_col}  {proj_col}  {summ_col} {branch_col}"
 
-        # Tab-separated metadata (fzf uses first field for display, we store session info after)
+        # Tab-separated: field 1 = ANSI display line, field 2 = session ID, field 3 = project path (all searchable)
         line = f"{display}\t{session_id}\t{project_path}"
         lines.append(line)
     return lines
