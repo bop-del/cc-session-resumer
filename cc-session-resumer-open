@@ -23,11 +23,6 @@ def main():
         sys.exit(1)
     session_id = sys.argv[1]
     project_path = sys.argv[2] if len(sys.argv) > 2 else ""
-    resumable = sys.argv[3] if len(sys.argv) > 3 else "1"
-
-    # ⊘ sessions are not in any sessions-index.json — claude --resume will fail
-    if resumable == "0":
-        sys.exit(0)
 
     if project_path and Path(project_path).exists():
         cd_path = project_path
