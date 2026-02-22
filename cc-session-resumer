@@ -270,36 +270,25 @@ def main():
     open_bind = "execute-silent(cc-session-resumer-open {2} {3})"
 
     if vim_mode:
-        header = "j↓  k↑  l=open  /=search  ESC=back/quit"
+        header = "j↓  k↑  l=open  ESC=quit"
         extra = [
-            "--disabled",                               # no typing by default
+            "--disabled",
             "--bind=j:down",
             "--bind=k:up",
             "--bind=l:" + open_bind,
             "--bind=tab:down",
-            "--bind=/:enable-search+clear-query",       # / enters search mode
             "--bind=esc:cancel",
             "--bind=enter:ignore",
-            # block stray letter keys
-            "--bind=a:ignore,b:ignore,c:ignore,d:ignore,e:ignore,f:ignore",
-            "--bind=g:ignore,h:ignore,i:ignore,m:ignore,n:ignore,o:ignore",
-            "--bind=p:ignore,q:ignore,r:ignore,s:ignore,t:ignore,u:ignore",
-            "--bind=v:ignore,w:ignore,x:ignore,y:ignore,z:ignore",
         ]
     else:
-        header = "j↓  k↑  ENTER=open  /=search  ESC=back/quit"
+        header = "j↓  k↑  ENTER=open  ESC=quit"
         extra = [
             "--disabled",
             "--bind=j:down",
             "--bind=k:up",
             "--bind=enter:" + open_bind,
             "--bind=tab:down",
-            "--bind=/:enable-search+clear-query",
             "--bind=esc:cancel",
-            "--bind=a:ignore,b:ignore,c:ignore,d:ignore,e:ignore,f:ignore",
-            "--bind=g:ignore,h:ignore,i:ignore,m:ignore,n:ignore,o:ignore",
-            "--bind=p:ignore,q:ignore,r:ignore,s:ignore,t:ignore,u:ignore",
-            "--bind=v:ignore,w:ignore,x:ignore,y:ignore,z:ignore",
         ]
 
     fzf_cmd = [

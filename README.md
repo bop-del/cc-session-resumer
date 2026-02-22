@@ -37,7 +37,6 @@ Edit here → changes take effect immediately, no install step needed.
 | `j` | Move down |
 | `k` | Move up |
 | `l` | Open selected session in new Warp tab |
-| `/` | Enter fuzzy search mode |
 | `ESC` | Quit |
 
 Use `cc-session-resumer --normal` for multi-select mode (TAB + ENTER).
@@ -100,6 +99,12 @@ export PATH="$HOME/.local/bin:$PATH"
 cc-session-resumer          # open picker (vim mode, default)
 cc-session-resumer --normal # multi-select mode (TAB to select multiple, ENTER to open all)
 ```
+
+## Future features
+
+- **Search / fuzzy filter** — press `/` to filter sessions by project, summary, or session ID
+- **Date filter** — show only sessions from the last N days
+- **Session count** — display total count in the header line
 
 ## Files
 
