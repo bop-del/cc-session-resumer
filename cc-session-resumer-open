@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""cc-session-resumer-open — open a Claude session in a new Warp tab. Called by cc-session-resumer via fzf execute."""
+"""cc-session-resumer-open — open a Claude session in a new terminal tab/window.
+
+Called by cc-session-resumer via fzf execute.
+Terminal backend is controlled by $CC_SESSION_RESUMER_TERMINAL (default: ghostty).
+"""
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,21 +23,13 @@ def _find_session_project_dir(session_id: str) -> str:
     return ""
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(1)
-    session_id = sys.argv[1]
-    project_path = sys.argv[2] if len(sys.argv) > 2 else ""
+def open_in_ghostty(cmd: str) -> None:
+    """Open a new Ghostty window running cmd."""
+    subprocess.run(["ghostty", "--", "zsh", "-c", cmd], check=True)
 
-    if project_path and Path(project_path).exists():
-        cd_path = project_path
-    else:
-        # Original path gone (e.g. deleted worktree) — find the session's encoded project dir
-        # so claude --resume can locate the .jsonl from the right project context
-        cd_path = _find_session_project_dir(session_id) or str(Path.home())
 
-    cmd = f"cd {shlex_quote(cd_path)} && claude --resume {session_id}"
-
+def open_in_warp(cmd: str) -> None:
+    """Open a new Warp tab running cmd (AppleScript + pbcopy)."""
     subprocess.run(["pbcopy"], input=cmd, text=True, check=True)
     script = """
 tell application "Warp"
@@ -49,6 +46,36 @@ tell application "System Events"
 end tell
 """
     subprocess.run(["osascript", "-e", script], check=True)
+
+
+def open_in_terminal(cmd: str) -> None:
+    """Dispatch to the configured terminal backend."""
+    terminal = os.environ.get("CC_SESSION_RESUMER_TERMINAL", "ghostty").lower()
+    if terminal == "warp":
+        open_in_warp(cmd)
+    elif terminal == "ghostty":
+        open_in_ghostty(cmd)
+    else:
+        # Fallback: copy to clipboard and print
+        subprocess.run(["pbcopy"], input=cmd, text=True, check=False)
+        print(f"Unknown terminal '{terminal}'. Command copied to clipboard:")
+        print(cmd)
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(1)
+    session_id = sys.argv[1]
+    project_path = sys.argv[2] if len(sys.argv) > 2 else ""
+
+    if project_path and Path(project_path).exists():
+        cd_path = project_path
+    else:
+        # Original path gone (e.g. deleted worktree) — find the session's encoded project dir
+        cd_path = _find_session_project_dir(session_id) or str(Path.home())
+
+    cmd = f"cd {shlex_quote(cd_path)} && claude --resume {session_id}"
+    open_in_terminal(cmd)
     print(f"Opened {session_id[:8]}…")
 
 
