@@ -2,7 +2,7 @@
 
 A fast, keyboard-driven terminal picker for all your Claude Code sessions.
 Browse every session across all projects, preview details and your past prompts,
-and open any session in a new Warp tab — without leaving the terminal.
+and open any session in a new terminal window — without leaving the terminal.
 
 ![demo](https://raw.githubusercontent.com/bop-del/cc-session-resumer/main/demo.png)
 
@@ -14,7 +14,7 @@ and open any session in a new Warp tab — without leaving the terminal.
   project names, and summaries
 - Right-side preview pane shows: session title, project/path, token usage,
   model used, top tools, and your last N prompts with timestamps
-- Opens selected sessions in a new Warp terminal tab via AppleScript
+- Opens selected sessions in a new terminal window (Ghostty by default, configurable)
 - Stays open after each selection so you can launch multiple sessions in a row
 
 ## Design
@@ -25,7 +25,7 @@ Three scripts, each with a single responsibility:
 |--------|------|
 | `cc-session-resumer` | Main entry point — loads sessions, builds fzf picker, handles key bindings |
 | `cc-session-resumer-preview` | fzf preview pane — renders session card from `.jsonl` data |
-| `cc-session-resumer-open` | Session opener — builds resume command, copies to clipboard, opens Warp tab |
+| `cc-session-resumer-open` | Session opener — builds resume command, opens in configured terminal (default: Ghostty) |
 
 `~/.local/bin/cc-session-resumer`, `cc-session-resumer-preview`, and `cc-session-resumer-open` are symlinks into this repo.
 Edit here → changes take effect immediately, no install step needed.
@@ -36,7 +36,7 @@ Edit here → changes take effect immediately, no install step needed.
 |-----|--------|
 | `j` | Move down |
 | `k` | Move up |
-| `l` | Open selected session in new Warp tab |
+| `l` | Open selected session in new terminal window |
 | `ESC` | Quit |
 
 Use `cc-session-resumer --normal` for multi-select mode (TAB + ENTER).
@@ -70,12 +70,10 @@ selected session and renders:
 | Python 3.9+ | Ships with macOS, or `brew install python` |
 | fzf 0.50+   | `brew install fzf` |
 | Claude Code | `npm install -g @anthropic-ai/claude-code` |
-| Warp terminal | https://warp.dev |
-| macOS Accessibility for Warp | System Settings → Privacy & Security → Accessibility |
+| Ghostty terminal (default) | https://ghostty.org |
 
-> **Accessibility permission required:** `cc-session-resumer-open` uses AppleScript to open
-> a new Warp tab. Enable it in:
-> **System Settings → Privacy & Security → Accessibility → Warp ✓**
+> **Warp users:** Set `export CC_SESSION_RESUMER_TERMINAL=warp` in your `.zshrc`.
+> Warp also requires macOS Accessibility: System Settings → Privacy & Security → Accessibility → Warp ✓
 
 ## Install
 
@@ -100,6 +98,22 @@ cc-session-resumer          # open picker (vim mode, default)
 cc-session-resumer --normal # multi-select mode (TAB to select multiple, ENTER to open all)
 ```
 
+
+## Terminal Support
+
+By default, sessions open in **Ghostty**. Set `CC_SESSION_RESUMER_TERMINAL` to switch:
+
+| Value | Behavior |
+|-------|----------|
+| `ghostty` (default) | Opens new Ghostty window via `ghostty -- zsh -c` |
+| `warp` | Opens new Warp tab via AppleScript |
+| anything else | Copies command to clipboard, prints to stdout |
+
+```sh
+# Add to ~/.zshrc (optional — ghostty is the default)
+export CC_SESSION_RESUMER_TERMINAL=ghostty
+```
+
 ## Future features
 
 - **Search / fuzzy filter** — press `/` to filter sessions by project, summary, or session ID
@@ -112,6 +126,6 @@ cc-session-resumer --normal # multi-select mode (TAB to select multiple, ENTER t
 cc-session-resumer/
 ├── cc-session-resumer          # main picker (fzf launcher + session loader)
 ├── cc-session-resumer-preview  # fzf preview pane renderer
-├── cc-session-resumer-open     # Warp tab opener (called by fzf execute-silent)
+├── cc-session-resumer-open     # terminal opener — dispatches to ghostty/warp/fallback (called by fzf execute-silent)
 └── README.md
 ```
