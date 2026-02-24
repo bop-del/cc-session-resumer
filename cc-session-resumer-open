@@ -24,8 +24,8 @@ def _find_session_project_dir(session_id: str) -> str:
 
 
 def open_in_ghostty(cmd: str) -> None:
-    """Open a new Ghostty window running cmd."""
-    subprocess.run(["ghostty", "--", "zsh", "-c", cmd], check=True)
+    """Open a new Ghostty window running cmd (macOS: open -na Ghostty.app)."""
+    subprocess.run(["open", "-na", "Ghostty.app", "--args", "-e", "zsh", "-c", cmd], check=True)
 
 
 def open_in_warp(cmd: str) -> None:
