@@ -219,32 +219,6 @@ def build_fzf_lines(sessions: list[dict]) -> list[str]:
     return lines
 
 
-def open_in_warp(session_id: str, project_path: str) -> None:
-    """Open a new Warp tab running claude --resume <session_id> in the project directory."""
-    if project_path and Path(project_path).exists():
-        cmd = f"cd {shlex_quote(project_path)} && claude --resume {session_id}"
-    else:
-        cmd = f"claude --resume {session_id}"
-
-    # Write cmd to clipboard, open new Warp tab, paste and run
-    # (avoids AppleScript keystroke escaping issues with special chars)
-    subprocess.run(["pbcopy"], input=cmd, text=True, check=True)
-    script = """
-tell application "Warp"
-  activate
-end tell
-tell application "System Events"
-  tell process "Warp"
-    keystroke "t" using command down
-    delay 0.4
-    keystroke "v" using command down
-    delay 0.1
-    keystroke return
-  end tell
-end tell
-"""
-    subprocess.run(["osascript", "-e", script], check=True)
-
 
 def shlex_quote(s: str) -> str:
     """Simple shell quoting for paths with spaces."""
